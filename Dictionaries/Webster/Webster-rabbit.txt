@@ -562,9 +562,18 @@ met (mut) pg 486
 
 mau | neferu | s-uash | nefu | maa-kheru | nesu  | mesu seru 
 
--n ending in Hebrew means "our"
+-n ending in Hebrew means "our" [-NU] 
+
+https://en.wikipedia.org/wiki/Suffixes_in_Hebrew
+susenu (our horse)
 
 maun | neferun ???
+
+
+
+mau | neferu | s-uash | nefu | 
+maa-kheru | nesu  | mesu seru 
+
 
 
 

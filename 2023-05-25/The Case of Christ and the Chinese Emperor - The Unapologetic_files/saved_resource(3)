@@ -1,0 +1,332 @@
+/* global WPGroHo:true, Gravatar */
+( function () {
+	var extend = function ( out ) {
+		out = out || {};
+
+		for ( var i = 1; i < arguments.length; i++ ) {
+			if ( ! arguments[ i ] ) continue;
+
+			for ( var key in arguments[ i ] ) {
+				if ( arguments[ i ].hasOwnProperty( key ) ) out[ key ] = arguments[ i ][ key ];
+			}
+		}
+
+		return out;
+	};
+
+	WPGroHo = extend(
+		{
+			my_hash: '',
+			data: {},
+			renderers: {},
+			syncProfileData: function ( hash, id ) {
+				var hashElements;
+
+				if ( ! WPGroHo.data[ hash ] ) {
+					WPGroHo.data[ hash ] = {};
+					hashElements = document.querySelectorAll( 'div.grofile-hash-map-' + hash + ' span' );
+					for ( var i = 0; i < hashElements.length; i++ ) {
+						WPGroHo.data[ hash ][ hashElements[ i ].className ] = hashElements[ i ].innerText;
+					}
+				}
+
+				WPGroHo.appendProfileData( WPGroHo.data[ hash ], hash, id );
+			},
+			appendProfileData: function ( data, hash, id ) {
+				for ( var key in data ) {
+					if ( 'function' === typeof WPGroHo.renderers[ key ] ) {
+						return WPGroHo.renderers[ key ]( data[ key ], hash, id, key );
+					}
+
+					var card = document.getElementById( id );
+					if ( card ) {
+						var heading = card.querySelector( 'h4' );
+						if ( heading ) {
+							var extra = document.createElement( 'p' );
+							extra.className = 'grav-extra ' + key;
+							extra.innerHTML = data[ key ];
+
+							heading.insertAdjacentElement( 'afterend', extra );
+						}
+					}
+				}
+			},
+		},
+		WPGroHo || {}
+	);
+
+	var jetpackHovercardsInit = function () {
+		if ( 'undefined' === typeof Gravatar ) {
+			return;
+		}
+
+		Gravatar.profile_cb = function ( h, d ) {
+			WPGroHo.syncProfileData( h, d );
+		};
+
+		Gravatar.my_hash = WPGroHo.my_hash;
+		Gravatar.init( 'body', '#wpadminbar' );
+	};
+
+	if ( document.readyState === 'interactive' || document.readyState === 'complete' ) {
+		jetpackHovercardsInit();
+	} else {
+		document.addEventListener( 'DOMContentLoaded', jetpackHovercardsInit );
+	}
+} )();
+;
+/**
+ * File skip-link-focus-fix.js.
+ *
+ * Helps with accessibility for keyboard only users.
+ *
+ * Learn more: https://git.io/vWdr2
+ */
+(function() {
+	var isIe = /(trident|msie)/i.test( navigator.userAgent );
+
+	if ( isIe && document.getElementById && window.addEventListener ) {
+		window.addEventListener( 'hashchange', function() {
+			var id = location.hash.substring( 1 ),
+				element;
+
+			if ( ! ( /^[A-z0-9_-]+$/.test( id ) ) ) {
+				return;
+			}
+
+			element = document.getElementById( id );
+
+			if ( element ) {
+				if ( ! ( /^(?:a|select|input|button|textarea)$/i.test( element.tagName ) ) ) {
+					element.tabIndex = -1;
+				}
+
+				element.focus();
+			}
+		}, false );
+	}
+})();
+;
+/**
+ * File navigation.js.
+ *
+ * Handles toggling the navigation menu for small screens and enables TAB key
+ * navigation support for dropdown menus.
+ */
+( function( $ ) {
+
+	var body, menuToggle, siteMenu, siteNavigation;
+
+	function initMainNavigation( container ) {
+
+		// Add dropdown toggle that displays child menu items.
+		var dropdownToggle = $( '<button />', {
+			'class': 'dropdown-toggle',
+			'aria-expanded': false
+		} ).append( $( '<span />', {
+			'class': 'screen-reader-text',
+			text: screenReaderText.expand
+		} ) );
+
+		container.find( '.menu-item-has-children > a' ).after( dropdownToggle );
+
+		// Toggle buttons and submenu items with active children menu items.
+		container.find( '.current-menu-ancestor > button' ).addClass( 'toggled-on' );
+		container.find( '.current-menu-ancestor > .sub-menu' ).addClass( 'toggled-on' );
+
+		// Add menu items with submenus to aria-haspopup="true".
+		container.find( '.menu-item-has-children' ).attr( 'aria-haspopup', 'true' );
+
+		container.find( '.dropdown-toggle' ).click( function( e ) {
+			var _this            = $( this ),
+				screenReaderSpan = _this.find( '.screen-reader-text' );
+
+			e.preventDefault();
+			_this.toggleClass( 'toggled-on' );
+			_this.next( '.children, .sub-menu' ).toggleClass( 'toggled-on' );
+
+			// jscs:disable
+			_this.attr( 'aria-expanded', _this.attr( 'aria-expanded' ) === 'false' ? 'true' : 'false' );
+			// jscs:enable
+			screenReaderSpan.text( screenReaderSpan.text() === screenReaderText.expand ? screenReaderText.collapse : screenReaderText.expand );
+		} );
+	}
+	initMainNavigation( $( '#site-navigation' ) );
+
+	siteMenu         = $( '#menu-primary' );
+	siteNavigation   = $( '#site-navigation' );
+	menuToggle       = siteNavigation.find( '.menu-toggle' );
+
+	// Enable menuToggle.
+	( function() {
+
+		// Return early if menuToggle is missing.
+		if ( ! menuToggle.length ) {
+			return;
+		}
+
+		// Add an initial values for the attribute.
+		menuToggle.add( siteNavigation ).attr( 'aria-expanded', 'false' );
+
+		menuToggle.on( 'click.apostrophe', function() {
+			$( this ).add( siteMenu ).add( siteNavigation ).toggleClass( 'toggled-on' );
+
+			// jscs:disable
+			$( this ).add( siteMenu ).add( siteNavigation ).attr( 'aria-expanded', $( this ).add( siteNavigation ).attr( 'aria-expanded' ) === 'false' ? 'true' : 'false' );
+			// jscs:enable
+		} );
+	} )();
+
+	// Fix sub-menus for touch devices and better focus for hidden submenu items for accessibility.
+	( function() {
+		if ( ! siteNavigation.length || ! siteNavigation.children().length ) {
+			return;
+		}
+
+		// Toggle `focus` class to allow submenu access on tablets.
+		function toggleFocusClassTouchScreen() {
+			if ( window.innerWidth >= 840 ) {
+				$( document.body ).on( 'touchstart.apostrophe', function( e ) {
+					if ( ! $( e.target ).closest( '.main-navigation li' ).length ) {
+						$( '.main-navigation li' ).removeClass( 'focus' );
+					}
+				} );
+				siteNavigation.find( '.menu-item-has-children > a' ).on( 'touchstart.apostrophe', function( e ) {
+					var el = $( this ).parent( 'li' );
+
+					if ( ! el.hasClass( 'focus' ) ) {
+						e.preventDefault();
+						el.toggleClass( 'focus' );
+						el.siblings( '.focus' ).removeClass( 'focus' );
+					}
+				} );
+			} else {
+				siteNavigation.find( '.menu-item-has-children > a' ).unbind( 'touchstart.apostrophe' );
+			}
+		}
+
+		if ( 'ontouchstart' in window ) {
+			$( window ).on( 'resize.apostrophe', toggleFocusClassTouchScreen );
+			toggleFocusClassTouchScreen();
+		}
+
+		siteNavigation.find( 'a' ).on( 'focus.apostrophe blur.apostrophe', function() {
+			$( this ).parents( '.menu-item' ).toggleClass( 'focus' );
+		} );
+	} )();
+
+	// Add the default ARIA attributes for the menu toggle and the navigations.
+	function onResizeARIA() {
+		if ( window.innerWidth < 840 ) {
+			if ( menuToggle.hasClass( 'toggled-on' ) ) {
+				menuToggle.attr( 'aria-expanded', 'true' );
+				siteMenu.attr( 'aria-expanded', 'true' );
+				siteNavigation.attr( 'aria-expanded', 'true' );
+			} else {
+				menuToggle.attr( 'aria-expanded', 'false' );
+				siteMenu.attr( 'aria-expanded', 'false' );
+				siteNavigation.attr( 'aria-expanded', 'false' );
+			}
+		} else {
+			menuToggle.removeAttr( 'aria-expanded' );
+			siteMenu.removeAttr( 'aria-expanded' );
+			siteNavigation.removeAttr( 'aria-expanded' );
+		}
+	}
+
+	$( document ).ready( function() {
+		body = $( document.body );
+
+		$( window )
+			.on( 'load.apostrophe', onResizeARIA )
+			.on( 'resize.apostrophe', onResizeARIA );
+	} );
+
+} )( jQuery );
+;
+/**
+ * apostrophe.js
+ *
+ * Handles the basic JS functionality for our theme.
+ */
+( function($) {
+	/*
+	 * Count the number of images in each row in order to create the proper clearings.
+	 * For the most part, this isn't necessary, but there are certain instances where
+	 * the grid breaks at the wrong spot, making the whole layout look funky.
+	 * To fix that, we're counting where we are in the grid layout based on the space
+	 * each article uses, and adding a clearing class each time we drop to a new row.
+	 */
+	function countGrid() {
+		var $body = $( 'body' );
+		var $container = $( '#main #posts-wrapper' );
+		var $button = $( '.menu-toggle' );
+
+		// Only initiate script if the mobile menu toggle isn't showing and we're on a page that uses the grid.
+		// Return otherwise.
+		if ( ( 0 !== $button.offsetWidth && 0 !== $button.offsetHeight ) &&
+				 ! ( $body.hasClass( 'archive' ) || $body.hasClass( 'blog' ) || $body.hasClass( 'search' ) ) ) {
+			return;
+		}
+
+		var $articles = $container.find( '.hentry' );
+		// This variable is used to count how far across the grid we are.
+		var gridcount = 0;
+		var gridcount_increment;
+
+		$articles.each( function() {
+			// If the article is featured, it takes up two blocks. If not, it takes up one.
+			if ( $( this ).hasClass( 'apostrophe-featured' ) ) {
+				gridcount_increment = 2;
+			} else {
+				gridcount_increment = 1;
+			}
+			// If we're at a newline in the grid, add a class to clear the previous line, and reset the grid count.
+			if ( 3 < gridcount + gridcount_increment ) {
+				gridcount = 0;
+				$( this ).addClass( 'clear' );
+			}
+			gridcount = gridcount + gridcount_increment;
+		} );
+	} // countGrid
+
+	// Set width of h2 elements inside the grid to make sure post titles don't overflow the container, and we're breaking long, one-word titles correctly.
+	function blockWidth() {
+		var $body = $( 'body' );
+		if ( $body.hasClass( 'archive' ) || $body.hasClass( 'blog' ) || $body.hasClass( 'search' ) ) {
+
+			if ( $( window ).innerWidth() > 767 ) {
+				$( '.hentry' ).each( function() {
+					$( this ).find( '.entry-title' ).width( $( this ).width() );
+				} );
+			} else {
+				$( '.hentry' ).each( function() {
+					$( this ).find( '.entry-title' ).attr( 'style', '' );
+				} );
+			}
+		}
+	}
+
+	// Count grid blocks on page load
+	$( document ).on( 'ready', function() {
+		countGrid();
+		blockWidth();
+	});
+
+	// ...and on each subsequent Infinite Scroll load, as well.
+	$( document ).on( 'post-load', function() {
+		countGrid();
+		blockWidth();
+	});
+
+	$( window ).resize( function() {
+		blockWidth();
+	});
+
+} )(jQuery);
+;
+/*! This file is auto-generated */
+window.addComment=function(v){var I,C,h,E=v.document,b={commentReplyClass:"comment-reply-link",commentReplyTitleId:"reply-title",cancelReplyId:"cancel-comment-reply-link",commentFormId:"commentform",temporaryFormId:"wp-temp-form-div",parentIdFieldId:"comment_parent",postIdFieldId:"comment_post_ID"},e=v.MutationObserver||v.WebKitMutationObserver||v.MozMutationObserver,r="querySelector"in E&&"addEventListener"in v,n=!!E.documentElement.dataset;function t(){d(),e&&new e(o).observe(E.body,{childList:!0,subtree:!0})}function d(e){if(r&&(I=g(b.cancelReplyId),C=g(b.commentFormId),I)){I.addEventListener("touchstart",l),I.addEventListener("click",l);function t(e){if((e.metaKey||e.ctrlKey)&&13===e.keyCode)return C.removeEventListener("keydown",t),e.preventDefault(),C.submit.click(),!1}C&&C.addEventListener("keydown",t);for(var n,d=function(e){var t=b.commentReplyClass;e&&e.childNodes||(e=E);e=E.getElementsByClassName?e.getElementsByClassName(t):e.querySelectorAll("."+t);return e}(e),o=0,i=d.length;o<i;o++)(n=d[o]).addEventListener("touchstart",a),n.addEventListener("click",a)}}function l(e){var t,n,d=g(b.temporaryFormId);d&&h&&(g(b.parentIdFieldId).value="0",t=d.textContent,d.parentNode.replaceChild(h,d),this.style.display="none",n=(d=(d=g(b.commentReplyTitleId))&&d.firstChild)&&d.nextSibling,d&&d.nodeType===Node.TEXT_NODE&&t&&(n&&"A"===n.nodeName&&n.id!==b.cancelReplyId&&(n.style.display=""),d.textContent=t),e.preventDefault())}function a(e){var t=g(b.commentReplyTitleId),t=t&&t.firstChild.textContent,n=this,d=m(n,"belowelement"),o=m(n,"commentid"),i=m(n,"respondelement"),r=m(n,"postid"),n=m(n,"replyto")||t;d&&o&&i&&r&&!1===v.addComment.moveForm(d,o,i,r,n)&&e.preventDefault()}function o(e){for(var t=e.length;t--;)if(e[t].addedNodes.length)return void d()}function m(e,t){return n?e.dataset[t]:e.getAttribute("data-"+t)}function g(e){return E.getElementById(e)}return r&&"loading"!==E.readyState?t():r&&v.addEventListener("DOMContentLoaded",t,!1),{init:d,moveForm:function(e,t,n,d,o){var i,r,l,a,m,c,s,e=g(e),n=(h=g(n),g(b.parentIdFieldId)),y=g(b.postIdFieldId),p=g(b.commentReplyTitleId),u=(p=p&&p.firstChild)&&p.nextSibling;if(e&&h&&n){void 0===o&&(o=p&&p.textContent),a=h,m=b.temporaryFormId,c=g(m),s=(s=g(b.commentReplyTitleId))?s.firstChild.textContent:"",c||((c=E.createElement("div")).id=m,c.style.display="none",c.textContent=s,a.parentNode.insertBefore(c,a)),d&&y&&(y.value=d),n.value=t,I.style.display="",e.parentNode.insertBefore(h,e.nextSibling),p&&p.nodeType===Node.TEXT_NODE&&(u&&"A"===u.nodeName&&u.id!==b.cancelReplyId&&(u.style.display="none"),p.textContent=o),I.onclick=function(){return!1};try{for(var f=0;f<C.elements.length;f++)if(i=C.elements[f],r=!1,"getComputedStyle"in v?l=v.getComputedStyle(i):E.documentElement.currentStyle&&(l=i.currentStyle),(i.offsetWidth<=0&&i.offsetHeight<=0||"hidden"===l.visibility)&&(r=!0),"hidden"!==i.type&&!i.disabled&&!r){i.focus();break}}catch(e){}return!1}}}}(window);;
+!function(e){var n=function(){var e,n,t,d;"undefined"!=typeof FB&&FB.XFBML?FB.XFBML.parse():((e=document.createElement("div")).id="fb-root",document.getElementsByTagName("body")[0].appendChild(e),n="//connect.facebook.net/"+jpfbembed.locale+"/sdk.js#xfbml=1",jpfbembed.appid&&(n+="&appId="+jpfbembed.appid),n+="&version=v2.3",(t=document.createElement("script")).setAttribute("src",n),(d=document.querySelector("script")).parentNode.insertBefore(t,d))};e.fbAsyncInit=function(){FB.init({appId:jpfbembed.appid,version:"v2.3"}),FB.XFBML.parse()},"undefined"!=typeof infiniteScroll&&document.body.addEventListener("post-load",n),n()}(window);;
+(()=>{var t,e,r,s,a,i;t=document,e="script",r="twitter-wjs",a=t.getElementsByTagName(e)[0],i=/^http:/.test(t.location)?"http":"https",t.getElementById(r)||((s=t.createElement(e)).id=r,s.src=i+"://platform.twitter.com/widgets.js",a.parentNode.insertBefore(s,a))})();;
+(()=>{var e=[],t=!1,o=2e3,i=[],n=new Promise((e=>{"loading"!==document.readyState?e():window.addEventListener("DOMContentLoaded",(()=>e()))}));function l(e,t){if("string"==typeof e)try{e=JSON.parse(e)}catch(e){return}if(t&&"function"==typeof t.postMessage)try{t.postMessage(JSON.stringify({type:"likesMessage",data:e}),"*")}catch(e){return}}function s(){const t=[];document.querySelectorAll("div.jetpack-likes-widget-unloaded").forEach((o=>{if(!(e.indexOf(o.id)>-1)&&c(o)){e.push(o.id);var i,n=/like-(post|comment)-wrapper-(\d+)-(\d+)-(\w+)/.exec(o.id);n&&5===n.length&&(i={blog_id:n[2],width:o.width},"post"===n[1]?i.post_id=n[3]:"comment"===n[1]&&(i.comment_id=n[3]),i.obj_id=n[4],t.push(i))}})),t.length>0&&l({event:"initialBatch",requests:t},window.frames["likes-master"])}function a(){var e;if(t){!function(){for(let e=i.length-1;e>=0;e--){const t=i[e];if(!c(t)){const o=t&&t.parentElement&&t.parentElement.parentElement;o.classList.remove("jetpack-likes-widget-loaded"),o.classList.remove("jetpack-likes-widget-loading"),o.classList.add("jetpack-likes-widget-unloaded"),o.querySelectorAll(".comment-likes-widget-placeholder").forEach((e=>e.style.display="block")),i.splice(e,1),t.remove()}}}();var o=[...document.querySelectorAll("div.jetpack-likes-widget-unloaded")].filter((e=>c(e)));o.length>0&&s();for(var n=0,l=o.length;n<=l-1;n++)(e=o[n].id)&&r(e)}else setTimeout(a,500)}function r(e){if(void 0===e)return;const t=document.querySelector("#"+e);t.querySelectorAll("iframe").forEach((e=>e.remove()));const o=t.querySelector(".likes-widget-placeholder");if(o&&o.classList.contains("post-likes-widget-placeholder")){const e=document.createElement("iframe");e.classList.add("post-likes-widget","jetpack-likes-widget"),e.name=t.dataset.name,e.src=t.dataset.src,e.height="55px",e.width="100%",e.frameBorder="0",e.scrolling="no",e.title=t.dataset.title,o.after(e)}if(o.classList.contains("comment-likes-widget-placeholder")){const e=document.createElement("iframe");e.class="comment-likes-widget-frame jetpack-likes-widget-frame",e.name=t.dataset.name,e.src=t.dataset.src,e.height="18px",e.width="100%",e.frameBorder="0",e.scrolling="no",t.querySelector(".comment-like-feedback").after(e),i.push(e)}t.classList.remove("jetpack-likes-widget-unloaded"),t.classList.add("jetpack-likes-widget-loading"),t.querySelector("iframe").addEventListener("load",(e=>{l({event:"loadLikeWidget",name:e.target.name,width:e.target.width},window.frames["likes-master"]),t.classList.remove("jetpack-likes-widget-loading"),t.classList.add("jetpack-likes-widget-loaded")}))}function c(e){const t=e.getBoundingClientRect().top,i=e.getBoundingClientRect().bottom;return t+o>=0&&i<=window.innerHeight+o}window.addEventListener("message",(function(e){let o=e&&e.data;if("string"==typeof o)try{o=JSON.parse(o)}catch(e){return}const i=o&&o.type,a=o&&o.data;if("likesMessage"!==i||void 0===a.event)return;if("https://widgets.wp.com"===e.origin)switch(a.event){case"masterReady":n.then((()=>{t=!0;const e={event:"injectStyles"},o=document.querySelector(".sd-text-color"),i=document.querySelector(".sd-link-color"),n=o&&getComputedStyle(o)||{},a=i&&getComputedStyle(i)||{};if(document.querySelectorAll("iframe.admin-bar-likes-widget").length>0){l({event:"adminBarEnabled"},window.frames["likes-master"]);const t=document.querySelector("#wpadminbar .quicklinks li#wp-admin-bar-wpl-like > a"),o=document.querySelector("#wpadminbar");e.adminBarStyles={background:t&&getComputedStyle(t).background,isRtl:o&&"rtl"===getComputedStyle(o).direction}}document.body.classList.contains("single")&&l({event:"reblogsEnabled"},window.frames["likes-master"]),e.textStyles={color:n.color,fontFamily:n["font-family"],fontSize:n["font-size"],direction:n.direction,fontWeight:n["font-weight"],fontStyle:n["font-style"],textDecoration:n["text-decoration"]},e.linkStyles={color:a.color,fontFamily:a["font-family"],fontSize:a["font-size"],textDecoration:a["text-decoration"],fontWeight:a["font-weight"],fontStyle:a["font-style"]},l(e,window.frames["likes-master"]),s()}));break;case"showLikeWidget":{const e=document.querySelector(`#${a.id} .likes-widget-placeholder`);e&&(e.style.display="none");break}case"showCommentLikeWidget":{const e=document.querySelector(`#${a.id} .likes-widget-placeholder`);e&&(e.style.display="none");break}case"killCommentLikes":document.querySelectorAll(".jetpack-comment-likes-widget-wrapper").forEach((e=>e.remove()));break;case"clickReblogFlair":wpcom_reblog&&"function"==typeof wpcom_reblog.toggle_reblog_box_flair&&wpcom_reblog.toggle_reblog_box_flair(a.obj_id);break;case"showOtherGravatars":{const e=document.querySelector("#likes-other-gravatars");if(!e)break;const t=e.querySelector("ul");e.style.display="none",t.innerHTML="",e.querySelectorAll(".likes-text span").forEach((e=>e.textContent=a.total)),(a.likers||[]).forEach((e=>{if("http"!==e.profile_URL.substr(0,4))return;const o=document.createElement("li");o.innerHTML=`\n\t\t\t\t\t<a href="${encodeURI(e.profile_URL)}" rel="nofollow" target="_parent" class="wpl-liker">\n\t\t\t\t\t\t<img src="${encodeURI(e.avatar_URL)}"\n\t\t\t\t\t\t\talt=""\n\t\t\t\t\t\t\tstyle="width: 30px; height: 30px; padding-right: 3px;" />\n\t\t\t\t\t</a>\n\t\t\t\t`,t.append(o),o.classList.add(e.css_class),o.querySelector("img").alt=e.name}));const o=document.querySelector(`*[name='${a.parent}']`),i=o.getBoundingClientRect(),n=o.ownerDocument.defaultView,l={top:i.top+n.pageYOffset,left:i.left+n.pageXOffset};e.style.left=l.left+a.position.left-10+"px",e.style.top=l.top+a.position.top-33+"px";const s=Math.floor(a.width/37);let r=37*Math.ceil(a.likers.length/s)+13;r>204&&(r=204);const c=37*s-7;e.style.height=r+"px",e.style.width=c+"px";const d=37*s;t.style.width=d+"px",e.style.display="block";const m=t.offsetWidth-t.clientWidth;m>0&&(e.style.width=c+m+"px",t.style.width=d+m+"px")}}})),document.addEventListener("click",(e=>{const t=document.querySelector("#likes-other-gravatars");t&&!t.contains(e.target)&&(t.style.display="none")}));var d,m,p,f=(d=250,m=a,function(){clearTimeout(p),p=setTimeout(m,d)});a(),window.addEventListener("scroll",f,!0)})();;
